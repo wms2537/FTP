@@ -1,0 +1,9 @@
+services:
+  server:
+    build: ./server
+    ports:
+      - "21:21"
+    volumes:
+      - ./server/data:/data
+    restart: always
+    command: ['-port', '21', '-root', '/data']

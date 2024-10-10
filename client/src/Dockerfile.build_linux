@@ -1,0 +1,51 @@
+FROM --platform=$TARGETPLATFORM ubuntu:20.04
+
+ARG TARGETPLATFORM
+ENV TZ=Asia/Shanghai
+
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# Install dependencies
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y \
+    curl \
+    git \
+    unzip \
+    xz-utils \
+    zip \
+    libglu1-mesa \
+    cmake \
+    ninja-build \
+    clang \
+    pkg-config \
+    libgtk-3-dev
+
+# Install Flutter
+RUN git clone https://github.com/flutter/flutter.git /usr/local/flutter
+ENV PATH="/usr/local/flutter/bin:${PATH}"
+RUN flutter doctor
+
+# Copy the project files
+COPY . /app
+WORKDIR /app
+
+# Get Flutter dependencies
+RUN flutter pub get
+
+# Build for Linux (AMD64 and ARM64)
+RUN flutter config --enable-linux-desktop && \
+    if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+        flutter build linux --release; \
+    elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+        flutter build linux --release --target-platform linux-arm64; \
+    fi
+
+# Copy the built files to a common location
+RUN mkdir -p /output && \
+    if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+        cp -r /app/build/linux/x64/release/bundle/* /output/; \
+    elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+        cp -r /app/build/linux/arm64/release/bundle/* /output/; \
+    fi
+
+FROM scratch AS output
+COPY --from=0 /output /

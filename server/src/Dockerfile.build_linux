@@ -1,0 +1,18 @@
+# Use an official Alpine Linux as a parent image
+FROM --platform=$TARGETPLATFORM alpine:latest
+
+# Install necessary packages
+RUN apk add --no-cache gcc make libc-dev
+
+# Set the working directory
+WORKDIR /app
+
+# Copy the current directory contents into the container at /app
+COPY . .
+
+# Compile the FTP server
+RUN make all
+
+FROM scratch as output
+
+COPY --from=0 /app/server /
